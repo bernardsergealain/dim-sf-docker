@@ -1,0 +1,63 @@
+version: '3'
+
+services:
+
+  mysql:
+    build:
+      context: ./docker/mysql
+    hostname: nginx
+    user: mysql
+    ports:
+      - 3307:3306
+    volumes:
+      - ./var/database:/var/lib/mysql:rw
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      APP_DB_USER: ${APP_DB_USER}
+      APP_DB_PASS: ${APP_DB_PASS}
+      APP_DB_NAME: ${APP_DB_NAME}
+
+  php:
+    build:
+      context: ../dim-sf-docker
+      dockerfile: ./docker/php/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV}
+    hostname: php
+    depends_on:
+      - mysql
+    ports:
+      - 9000:9000
+    volumes:
+      - .:/app:cached
+    working_dir: /app
+    environment:
+      APP_ENV: ${APP_ENV}
+      APP_SECRET: ${APP_SECRET}
+      APP_DB_USER: ${APP_DB_USER}
+      APP_DB_PASS: ${APP_DB_PASS}
+
+  nginx:
+    build:
+      context: ./docker/nginx
+    hostname: nginx
+    depends_on:
+      - mysql
+      - php
+    ports:
+      - 81:80
+    volumes:
+      - .:/app:cached
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    links:
+      - mysql
+      - php
+    environment:
+      SERVICE_80_NAME: 'phpmyadmin'
+      SERVICE_80_TAGS: 'http'
+      MYSQL_HOST: 'root'
+      MYSQL_PORT: '3306|3306'
+    ports:
+      - 8282:80
